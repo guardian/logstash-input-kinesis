@@ -4,6 +4,7 @@ require 'jar_dependencies'
 require_jar('com.amazonaws', 'aws-java-sdk-kms', '1.11.14')
 require_jar('com.amazonaws', 'amazon-kinesis-client', '1.7.0')
 require_jar('com.amazonaws', 'aws-java-sdk-core', '1.11.16')
+require_jar('com.amazonaws', 'aws-java-sdk-sts', '1.11.14')
 require_jar('commons-codec', 'commons-codec', '1.9')
 require_jar('com.fasterxml.jackson.core', 'jackson-databind', '2.6.6')
 require_jar('com.google.guava', 'guava', '18.0')
