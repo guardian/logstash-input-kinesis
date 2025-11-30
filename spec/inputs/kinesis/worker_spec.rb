@@ -6,91 +6,101 @@ require "logstash/codecs/json"
 require "json"
 
 RSpec.describe "LogStash::Inputs::Kinesis::Worker" do
-  KCL_TYPES = com.amazonaws.services.kinesis.clientlibrary.types
-
-  subject!(:worker) { LogStash::Inputs::Kinesis::Worker.new(codec, queue, decorator, checkpoint_interval) }
+  subject!(:worker) { LogStash::Inputs::Kinesis::Worker.new(codec, queue, decorator, checkpoint_interval, logger) }
   let(:codec) { LogStash::Codecs::JSON.new() }
   let(:queue) { Queue.new }
   let(:decorator) { proc { |x| x.set('decorated', true); x } }
   let(:checkpoint_interval) { 120 }
+  let(:logger) { double('logger', info: nil, error: nil, warn: nil) }
   let(:checkpointer) { double('checkpointer', checkpoint: nil) }
-  let(:init_input) { KCL_TYPES::InitializationInput.new().withShardId("xyz") }
+  let(:init_input) { 
+    double('initialization_input', shardId: 'shard-000001')
+  }
 
   it "honors the initialize java interface method contract" do
-    expect { worker.initialize(init_input) }.to_not raise_error
+    expect { worker.initialize_processor(init_input) }.to_not raise_error
   end
 
-  def record(hash = { "message" => "test" }, arrival_timestamp, partition_key, sequence_number)
+  def record(hash, arrival_timestamp, partition_key, sequence_number, sub_sequence_number = 0)
+    hash ||= { "message" => "test" }
     encoder = java.nio.charset::Charset.forName("UTF-8").newEncoder()
-    data = encoder.encode(java.nio.CharBuffer.wrap(JSON.generate(hash)))
-    double(
-      getData: data,
-      getApproximateArrivalTimestamp: java.util.Date.new(arrival_timestamp.to_f * 1000),
-      getPartitionKey: partition_key,
-      getSequenceNumber: sequence_number
+    data_bytes = encoder.encode(java.nio.CharBuffer.wrap(JSON.generate(hash)))
+    rec = double('record')
+    allow(rec).to receive(:data).and_return(data_bytes)
+    allow(rec).to receive(:approximateArrivalTimestamp).and_return(
+      java.time.Instant.ofEpochMilli((arrival_timestamp.to_f * 1000).to_i)
     )
+    allow(rec).to receive(:partitionKey).and_return(partition_key)
+    allow(rec).to receive(:sequenceNumber).and_return(sequence_number)
+    allow(rec).to receive(:subSequenceNumber).and_return(sub_sequence_number)
+    rec
   end
 
   let(:process_input) {
-    KCL_TYPES::ProcessRecordsInput.new()
-        .withRecords(java.util.Arrays.asList([
-          record(
-            {
-              id: "record1",
-              message: "test1"
-            },
-            '1.441215410867E9',
-            'partitionKey1',
-            '21269319989652663814458848515492872191'
-          ),
-          record(
-            {
-              '@metadata' => {
-                forwarded: 'record2'
-              },
-              id: "record2",
-              message: "test2"
-            },
-            '1.441215410868E9',
-            'partitionKey2',
-            '21269319989652663814458848515492872192'
-          )].to_java)
-        )
-        .withCheckpointer(checkpointer)
+    input = double('process_records_input')
+    records = java.util.Arrays.asList([
+      record(
+        {
+          id: "record1",
+          message: "test1"
+        },
+        '1.441215410867E9',
+        'partitionKey1',
+        '21269319989652663814458848515492872191'
+      ),
+      record(
+        {
+          '@metadata' => {
+            forwarded: 'record2'
+          },
+          id: "record2",
+          message: "test2"
+        },
+        '1.441215410868E9',
+        'partitionKey2',
+        '21269319989652663814458848515492872192'
+      )
+    ].to_java)
+    allow(input).to receive(:records).and_return(records)
+    allow(input).to receive(:checkpointer).and_return(checkpointer)
+    input
   }
   let(:collide_metadata_process_input) {
-    KCL_TYPES::ProcessRecordsInput.new()
-        .withRecords(java.util.Arrays.asList([
-          record(
-            {
-              '@metadata' => {
-                forwarded: 'record3',
-                partition_key: 'invalid_key'
-              },
-            id: "record3",
-            message: "test3"
-            },
-            '1.441215410869E9',
-            'partitionKey3',
-            '21269319989652663814458848515492872193'
-          )].to_java)
-        )
-        .withCheckpointer(checkpointer)
+    input = double('process_records_input')
+    records = java.util.Arrays.asList([
+      record(
+        {
+          '@metadata' => {
+            forwarded: 'record3',
+            partition_key: 'invalid_key'
+          },
+          id: "record3",
+          message: "test3"
+        },
+        '1.441215410869E9',
+        'partitionKey3',
+        '21269319989652663814458848515492872193'
+      )
+    ].to_java)
+    allow(input).to receive(:records).and_return(records)
+    allow(input).to receive(:checkpointer).and_return(checkpointer)
+    input
   }
   let(:empty_process_input) {
-    KCL_TYPES::ProcessRecordsInput.new()
-        .withRecords(java.util.Arrays.asList([].to_java))
-        .withCheckpointer(checkpointer)
+    input = double('process_records_input')
+    allow(input).to receive(:records).and_return(java.util.Arrays.asList([].to_java))
+    allow(input).to receive(:checkpointer).and_return(checkpointer)
+    input
   }
 
   context "initialized" do
     before do
-      worker.initialize(init_input)
+      worker.initialize_processor(init_input)
     end
 
-    describe "#processRecords" do
+    describe "#process_records" do
       it "decodes and queues each record with decoration" do
-        worker.processRecords(process_input)
+        worker.process_records(process_input)
         expect(queue.size).to eq(2)
         m1 = queue.pop
         m2 = queue.pop
@@ -105,7 +115,7 @@ RSpec.describe "LogStash::Inputs::Kinesis::Worker" do
       end
 
       it "decodes and keeps submitted metadata" do
-        worker.processRecords(process_input)
+        worker.process_records(process_input)
         expect(queue.size).to eq(2)
         m1 = queue.pop
         m2 = queue.pop
@@ -116,7 +126,7 @@ RSpec.describe "LogStash::Inputs::Kinesis::Worker" do
       end
 
       it "decodes and does not allow submitted metadata to overwrite internal keys" do
-        worker.processRecords(collide_metadata_process_input)
+        worker.process_records(collide_metadata_process_input)
         expect(queue.size).to eq(1)
         m1 = queue.pop
         expect(m1).to be_kind_of(LogStash::Event)
@@ -126,26 +136,32 @@ RSpec.describe "LogStash::Inputs::Kinesis::Worker" do
 
       it "checkpoints on interval" do
         expect(checkpointer).to receive(:checkpoint).once
-        worker.processRecords(empty_process_input)
+        worker.process_records(empty_process_input)
 
         # not this time
-        worker.processRecords(empty_process_input)
+        worker.process_records(empty_process_input)
 
         allow(Time).to receive(:now).and_return(Time.now + 125)
         expect(checkpointer).to receive(:checkpoint).once
-        worker.processRecords(empty_process_input)
+        worker.process_records(empty_process_input)
       end
     end
 
-    describe "#shutdown" do
-      it "checkpoints on termination" do
-        input = KCL_TYPES::ShutdownInput.new
-        checkpointer = double('checkpointer')
+    describe "#shard_ended" do
+      it "checkpoints on shard end" do
+        input = double('shard_ended_input')
+        allow(input).to receive(:checkpointer).and_return(checkpointer)
         expect(checkpointer).to receive(:checkpoint)
-        input.
-          with_shutdown_reason(com.amazonaws.services.kinesis.clientlibrary.lib.worker::ShutdownReason::TERMINATE).
-          with_checkpointer(checkpointer)
-        worker.shutdown(input)
+        worker.shard_ended(input)
+      end
+    end
+
+    describe "#shutdown_requested" do
+      it "checkpoints on shutdown request" do
+        input = double('shutdown_requested_input')
+        allow(input).to receive(:checkpointer).and_return(checkpointer)
+        expect(checkpointer).to receive(:checkpoint)
+        worker.shutdown_requested(input)
       end
     end
   end

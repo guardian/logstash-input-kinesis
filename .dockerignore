@@ -1,0 +1,39 @@
+# Git files
+.git
+.gitignore
+
+# Development
+.bundle
+vendor/bundle
+vendor/jar-dependencies
+.yardoc
+/_yardoc/
+/doc/
+/tmp/
+spec/reports/
+.envrc
+Dockerfile
+Makefile
+
+# Builds
+*.gem
+*.bundle
+*.so
+*.o
+*.a
+pkg/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# CI
+.travis.yml
+
+# Documentation
+docs/
+CHANGELOG.md
+CONTRIBUTORS

@@ -1,0 +1,12 @@
+[
+  {
+    "httpRequest": {
+      "method": "POST",
+      "path": "/logstash-events"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "body": "{\"status\": \"received\"}"
+    }
+  }
+]

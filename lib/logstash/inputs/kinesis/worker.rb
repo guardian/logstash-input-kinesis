@@ -1,6 +1,6 @@
 # encoding: utf-8
 class LogStash::Inputs::Kinesis::Worker
-  include com.amazonaws.services.kinesis.clientlibrary.interfaces.v2::IRecordProcessor
+  include Java::SoftwareAmazonKinesisProcessor::ShardRecordProcessor
 
   attr_reader(
     :checkpoint_interval,
@@ -11,57 +11,73 @@ class LogStash::Inputs::Kinesis::Worker
   )
 
   def initialize(*args)
-    # nasty hack, because this is the name of a method on IRecordProcessor, but also ruby's constructor
     if !@constructed
       @codec, @output_queue, @decorator, @checkpoint_interval, @logger = args
       @next_checkpoint = Time.now - 600
       @constructed = true
-    else
-      _shard_id = args[0].shardId
     end
   end
   public :initialize
 
-  def processRecords(records_input)
-    records_input.records.each { |record| process_record(record) }
-    if Time.now >= @next_checkpoint
-      checkpoint(records_input.checkpointer)
-      @next_checkpoint = Time.now + @checkpoint_interval
-    end
+  def initialize_processor(initialization_input)
+    @shard_id = initialization_input.shardId()
   end
 
-  def shutdown(shutdown_input)
-    if shutdown_input.shutdown_reason == com.amazonaws.services.kinesis.clientlibrary.lib.worker::ShutdownReason::TERMINATE
-      checkpoint(shutdown_input.checkpointer)
+  def process_records(process_records_input)
+    process_records_input.records().each { |record| process_record(record) }
+    
+    if Time.now >= @next_checkpoint
+      process_records_input.checkpointer().checkpoint()
+      @next_checkpoint = Time.now + @checkpoint_interval
     end
+  rescue => error
+    @logger.error("Error processing records: #{error}")
+  end
+
+  def lease_lost(lease_lost_input)
+    @logger.info("Lease lost for shard #{@shard_id}")
+  end
+
+  def shard_ended(shard_ended_input)
+    @logger.info("Shard #{@shard_id} ended, checkpointing...")
+    shard_ended_input.checkpointer().checkpoint()
+  rescue => error
+    @logger.error("Error checkpointing shard end: #{error}")
+  end
+
+  def shutdown_requested(shutdown_requested_input)
+    @logger.info("Shutdown requested for shard #{@shard_id}")
+    shutdown_requested_input.checkpointer().checkpoint()
+  rescue => error
+    @logger.error("Error checkpointing on shutdown: #{error}")
   end
 
   protected
 
-  def checkpoint(checkpointer)
-    checkpointer.checkpoint()
-  rescue => error
-    @logger.error("Kinesis worker failed checkpointing: #{error}")
-  end
-
   def process_record(record)
-    raw = String.from_java_bytes(record.getData.array)
+    # KCL 2.x returns a read-only ByteBuffer, so we need to copy the bytes
+    byte_buffer = record.data()
+    bytes = Java::byte[byte_buffer.remaining].new
+    byte_buffer.get(bytes)
+    raw = String.from_java_bytes(bytes)
+    
     metadata = build_metadata(record)
+    
     @codec.decode(raw) do |event|
       @decorator.call(event)
       event.set('@metadata', event.get('@metadata').merge(metadata))
       @output_queue << event
     end
   rescue => error
-    @logger.error("Error processing record: #{error}")
+    @logger.error("Error processing record", :error => error.message, :backtrace => error.backtrace)
   end
 
   def build_metadata(record)
     metadata = Hash.new
-    metadata['approximate_arrival_timestamp'] = record.getApproximateArrivalTimestamp.getTime
-    metadata['partition_key'] = record.getPartitionKey
-    metadata['sequence_number'] = record.getSequenceNumber
+    metadata['approximate_arrival_timestamp'] = record.approximateArrivalTimestamp().toEpochMilli()
+    metadata['partition_key'] = record.partitionKey()
+    metadata['sequence_number'] = record.sequenceNumber()
+    metadata['sub_sequence_number'] = record.subSequenceNumber()
     metadata
   end
-
 end

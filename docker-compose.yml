@@ -1,0 +1,62 @@
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: logstash-kinesis-localstack
+    environment:
+      - SERVICES=kinesis,dynamodb,cloudwatch
+      - DEBUG=1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./integration-test/localstack:/etc/localstack/init/ready.d
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  http-mock:
+    image: mockserver/mockserver:latest
+    container_name: logstash-kinesis-http-mock
+    environment:
+      - MOCKSERVER_PROPERTY_FILE=/config/mockserver.properties
+      - MOCKSERVER_INITIALIZATION_JSON_PATH=/config/expectations.json
+    ports:
+      - "1080:1080"
+    volumes:
+      - ./integration-test/http-mock:/config
+
+  logstash:
+    build:
+      context: .
+    container_name: logstash-kinesis-test
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_REGION=us-east-1
+      - AWS_CBOR_DISABLE=true
+      # Override AWS SDK endpoints to use LocalStack
+      - JAVA_OPTS=-Dcom.amazonaws.sdk.disableCertChecking=true
+    ports:
+      - "9600:9600"
+    volumes:
+      - .:/plugin-src:ro
+      - ./integration-test/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./integration-test/logstash/config:/usr/share/logstash/config
+    command: >
+      bash -c "
+        logstash -f /usr/share/logstash/pipeline/kinesis-test.conf --config.reload.automatic
+      "
+    depends_on:
+      localstack:
+        condition: service_healthy
+      http-mock:
+        condition: service_started
+
+volumes:
+  localstack-data:

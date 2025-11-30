@@ -1,4 +1,4 @@
-.PHONY: help test clean dist-clean setup all
+.PHONY: help test clean dist-clean setup all integration gem docker
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -21,9 +21,20 @@ vendor/jar-dependencies/.timestamp: vendor/bundle/.timestamp logstash-input-kine
 
 install-jars: vendor/jar-dependencies/.timestamp ## Download Java JAR dependencies
 
-test: install-jars ## Run tests
+test: install-jars ## Run unit tests
 	@echo "Running tests..."
 	bundle exec rspec
+
+gem: install-jars ## Build gem package
+	@echo "Building gem package..."
+	gem build logstash-input-kinesis.gemspec
+
+docker: ## Build Docker image with the plugin installed
+	@echo "Building Docker image..."
+	docker build -t logstash-input-kinesis .
+
+integration: ## Run integration tests with docker-compose, localstack, and http mock
+	@./integration-test/run-test.sh
 
 clean: ## Clean vendor directories and installed dependencies
 	@echo "Cleaning vendor directories..."

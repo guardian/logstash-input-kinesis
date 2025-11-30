@@ -9,10 +9,9 @@ require "logstash/namespace"
 
 require 'logstash-input-kinesis_jars'
 
-
 # Receive events through an AWS Kinesis stream.
 #
-# This input plugin uses the Java Kinesis Client Library underneath, so the
+# This input plugin uses the Java Kinesis Client Library v2 underneath, so the
 # documentation at https://github.com/awslabs/amazon-kinesis-client will be
 # useful.
 #
@@ -24,8 +23,9 @@ require 'logstash-input-kinesis_jars'
 #
 # The library can optionally also send worker statistics to CloudWatch.
 class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
-  KCL = com.amazonaws.services.kinesis.clientlibrary.lib.worker
-  KCL_PROCESSOR_FACTORY_CLASS = com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessorFactory
+  KCL = Java::SoftwareAmazonKinesisCoordinator
+  Records = Java::SoftwareAmazonKinesisRetrievalRecords
+  ClientConfig = Java::SoftwareAmazonKinesisCommon
   require "logstash/inputs/kinesis/worker"
 
   config_name 'kinesis'
@@ -66,8 +66,17 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
   # Select initial_position_in_stream. Accepts TRIM_HORIZON or LATEST
   config :initial_position_in_stream, :validate => ["TRIM_HORIZON", "LATEST"], :default => "TRIM_HORIZON"
 
-  # Any additional arbitrary kcl options configurable in the KinesisClientLibConfiguration
+  # Any additional arbitrary kcl options configurable in the ConfigsBuilder
   config :additional_settings, :validate => :hash, :default => {}
+
+  # Kinesis endpoint override (for LocalStack or custom endpoints)
+  config :kinesis_endpoint, :validate => :string, :default => nil
+
+  # DynamoDB endpoint override (for LocalStack or custom endpoints)
+  config :dynamodb_endpoint, :validate => :string, :default => nil
+
+  # CloudWatch endpoint override (for LocalStack or custom endpoints)
+  config :cloudwatch_endpoint, :validate => :string, :default => nil
 
   # Proxy for Kinesis, DynamoDB, and CloudWatch (if enabled)
   config :http_proxy, :validate => :password, :default => nil
@@ -81,7 +90,7 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
 
   def register
     # the INFO log level is extremely noisy in KCL
-    lg = org.apache.commons.logging::LogFactory.getLog("com.amazonaws.services.kinesis")
+    lg = org.apache.commons.logging::LogFactory.getLog("software.amazon.kinesis")
     if lg.kind_of?(org.apache.commons.logging.impl::Jdk14Logger)
       kinesis_logger = lg.logger
       if kinesis_logger.kind_of?(java.util.logging::Logger)
@@ -92,7 +101,7 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
     elsif lg.kind_of?(org.apache.logging.log4jJcl::Log4jLog)
       logContext = org.apache.logging.log4j::LogManager.getContext(false)
       config = logContext.getConfiguration()
-      config.getLoggerConfig("com.amazonaws.services.kinesis").setLevel(org.apache.logging.log4j::Level::WARN)
+      config.getLoggerConfig("software.amazon.kinesis").setLevel(org.apache.logging.log4j::Level::WARN)
     else
       raise "Can't configure WARN log level for logger wrapper class #{lg.class}"
     end
@@ -103,104 +112,175 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
     uuid = java.util::UUID.randomUUID.to_s
     worker_id = "#{hostname}:#{uuid}"
 
+    # Build AWS SDK v2 credentials provider
+    creds_provider_builder = Java::SoftwareAmazonAwssdkAuthCredentials::AwsCredentialsProviderChain.builder()
+
     # If the AWS profile is set, use the profile credentials provider.
-    # Otherwise fall back to the default chain.
     unless @profile.nil?
-      creds = com.amazonaws.auth.profile::ProfileCredentialsProvider.new(@profile)
-    else
-      creds = com.amazonaws.auth::DefaultAWSCredentialsProviderChain.new
+      profile_creds = Java::SoftwareAmazonAwssdkAuthCredentials::ProfileCredentialsProvider.builder()
+        .profileName(@profile)
+        .build()
+      creds_provider_builder.addCredentialsProvider(profile_creds)
     end
 
-    # If a role ARN is set then assume the role as a new layer over the credentials already created
-    unless @role_arn.nil?
-      kinesis_creds = com.amazonaws.auth::STSAssumeRoleSessionCredentialsProvider.new(creds, @role_arn, @role_session_name)
-    else
-      kinesis_creds = creds
-    end
+    # Add default credential provider chain
+    creds_provider_builder.addCredentialsProvider(
+      Java::SoftwareAmazonAwssdkAuthCredentials::DefaultCredentialsProvider.create()
+    )
 
-    initial_position_in_stream = if @initial_position_in_stream == "TRIM_HORIZON"
-      KCL::InitialPositionInStream::TRIM_HORIZON
-    else
-      KCL::InitialPositionInStream::LATEST
-    end
+    base_creds_provider = creds_provider_builder.build()
 
-    @kcl_config = KCL::KinesisClientLibConfiguration.new(
-      @application_name,
-      @kinesis_stream_name,
-      kinesis_creds, # credential provider for Kinesis, DynamoDB and Cloudwatch access
-      worker_id).
-        withInitialPositionInStream(initial_position_in_stream).
-        withRegionName(@region)
-
-      # Call arbitrary "withX()" functions
-      # snake_case => withCamelCase happens automatically
-      @additional_settings.each do |key, value|
-          fn = "with_#{key}"
-          @kcl_config.send(fn, value)
-      end
-
+    # Build HTTP client configuration first (needed for STS if role_arn is set)
+    region = Java::SoftwareAmazonAwssdkRegions::Region.of(@region)
+    http_client_builder = Java::SoftwareAmazonAwssdkHttpApache::ApacheHttpClient.builder()
+    
     if @http_proxy && !@http_proxy.value.to_s.strip.empty?
-        proxy_uri = URI(@http_proxy.value)
-        @logger.info("Using proxy #{proxy_uri.scheme}://#{proxy_uri.user}:*****@#{proxy_uri.host}:#{proxy_uri.port}")
-        clnt_cfg = @kcl_config.get_kinesis_client_configuration
-        set_client_proxy_settings(clnt_cfg, proxy_uri)
-        clnt_cfg = @kcl_config.get_dynamo_db_client_configuration
-        set_client_proxy_settings(clnt_cfg, proxy_uri)
-        clnt_cfg = @kcl_config.get_cloud_watch_client_configuration
-        set_client_proxy_settings(clnt_cfg, proxy_uri)
-      end
+      proxy_uri = URI(@http_proxy.value)
+      @logger.info("Using proxy #{proxy_uri.scheme}://#{proxy_uri.user}:*****@#{proxy_uri.host}:#{proxy_uri.port}")
+      
+      proxy_config_builder = Java::SoftwareAmazonAwssdkHttpApache::ProxyConfiguration.builder()
+        .endpoint(java.net.URI.new("#{proxy_uri.scheme}://#{proxy_uri.host}:#{proxy_uri.port}"))
 
-      @logger.info("Registered logstash-input-kinesis")
+      proxy_config_builder.username(proxy_uri.user) if proxy_uri.user
+      proxy_config_builder.password(proxy_uri.password) if proxy_uri.password
+      if @non_proxy_hosts
+        non_proxy_set = java.util.HashSet.new
+        @non_proxy_hosts.split(',').map(&:strip).each { |host| non_proxy_set.add(host) }
+        proxy_config_builder.nonProxyHosts(non_proxy_set)
+      end
+      
+      http_client_builder.proxyConfiguration(proxy_config_builder.build())
+    end
+
+    http_client = http_client_builder.build()
+
+    # If a role ARN is set then assume the role
+    unless @role_arn.nil?
+      sts_client = Java::SoftwareAmazonAwssdkServicesSts::StsClient.builder()
+        .region(region)
+        .credentialsProvider(base_creds_provider)
+        .httpClient(http_client)
+        .build()
+
+      assume_role_request = Java::SoftwareAmazonAwssdkServicesStsModel::AssumeRoleRequest.builder()
+        .roleArn(@role_arn)
+        .roleSessionName(@role_session_name)
+        .build()
+
+      creds_provider = Java::SoftwareAmazonAwssdkServicesStsAuth::StsAssumeRoleCredentialsProvider.builder()
+        .stsClient(sts_client)
+        .refreshRequest(assume_role_request)
+        .build()
+    else
+      creds_provider = base_creds_provider
+    end
+
+    # Create AWS SDK v2 clients for Kinesis, DynamoDB, and CloudWatch
+    kinesis_builder = Java::SoftwareAmazonAwssdkServicesKinesis::KinesisAsyncClient.builder()
+      .region(region)
+      .credentialsProvider(creds_provider)
+      .httpClient(http_client)
+    kinesis_builder.endpointOverride(Java::JavaNet::URI.create(@kinesis_endpoint)) if @kinesis_endpoint
+    kinesis_client = kinesis_builder.build()
+
+    dynamo_builder = Java::SoftwareAmazonAwssdkServicesDynamodb::DynamoDbAsyncClient.builder()
+      .region(region)
+      .credentialsProvider(creds_provider)
+      .httpClient(http_client)
+    dynamo_builder.endpointOverride(Java::JavaNet::URI.create(@dynamodb_endpoint)) if @dynamodb_endpoint
+    dynamo_client = dynamo_builder.build()
+
+    cloudwatch_builder = Java::SoftwareAmazonAwssdkServicesCloudwatch::CloudWatchAsyncClient.builder()
+      .region(region)
+      .credentialsProvider(creds_provider)
+      .httpClient(http_client)
+    cloudwatch_builder.endpointOverride(Java::JavaNet::URI.create(@cloudwatch_endpoint)) if @cloudwatch_endpoint
+    cloudwatch_client = cloudwatch_builder.build()
+
+    initial_position = if @initial_position_in_stream == "TRIM_HORIZON"
+      ClientConfig::InitialPositionInStreamExtended.newInitialPosition(ClientConfig::InitialPositionInStream::TRIM_HORIZON)
+    else
+      ClientConfig::InitialPositionInStreamExtended.newInitialPosition(ClientConfig::InitialPositionInStream::LATEST)
+    end
+
+    configsBuilder = ClientConfig::ConfigsBuilder.new(
+      @kinesis_stream_name,
+      @application_name,
+      kinesis_client,
+      dynamo_client,
+      cloudwatch_client,
+      worker_id,
+      worker_factory_lambda()
+    )
+
+    # Apply additional settings
+    @additional_settings.each do |key, value|
+      fn = "#{key}"
+      begin
+        configsBuilder.send(fn, value)
+      rescue NoMethodError => e
+        @logger.warn("Invalid additional_settings key: #{key}", :error => e.message)
+        raise e
+      end
+    end
+
+    @kcl_config = configsBuilder
+    @logger.info("Registered logstash-input-kinesis")
   end
 
   def run(output_queue)
-    @kcl_worker = kcl_builder(output_queue).build
-    @kcl_worker.run
-  end
-
-  def kcl_builder(output_queue)
-    KCL::Worker::Builder.new.tap do |builder|
-      builder.java_send(:recordProcessorFactory, [KCL_PROCESSOR_FACTORY_CLASS.java_class], worker_factory(output_queue))
-      builder.config(@kcl_config)
-
-      if metrics_factory
-        builder.metricsFactory(metrics_factory)
-      end
-    end
+    @output_queue_holder.queue = output_queue if @output_queue_holder
+    @kcl_worker = KCL::Scheduler.new(
+      @kcl_config.checkpointConfig(),
+      @kcl_config.coordinatorConfig(),
+      @kcl_config.leaseManagementConfig(),
+      @kcl_config.lifecycleConfig(),
+      @kcl_config.metricsConfig(),
+      @kcl_config.processorConfig(),
+      @kcl_config.retrievalConfig()
+    )
+    @kcl_worker.run()
   end
 
   def stop
-    @kcl_worker.shutdown if @kcl_worker
+    @kcl_worker.shutdown() if @kcl_worker
   end
 
-  def worker_factory(output_queue)
-    proc { Worker.new(@codec.clone, output_queue, method(:decorate), @checkpoint_interval_seconds, @logger) }
-  end
-
-  protected
-
-  def metrics_factory
-    case @metrics
-    when nil
-      com.amazonaws.services.kinesis.metrics.impl::NullMetricsFactory.new
-    when 'cloudwatch'
-      nil # default in the underlying library
+  def worker_factory_lambda
+    # Create a ShardRecordProcessorFactory that returns our Worker instances
+    factory_class = Class.new do
+      include Java::SoftwareAmazonKinesisProcessor::ShardRecordProcessorFactory
+      
+      def initialize(codec, output_queue_holder, decorator, checkpoint_interval, logger)
+        super()
+        @codec = codec
+        @output_queue_holder = output_queue_holder
+        @decorator = decorator
+        @checkpoint_interval = checkpoint_interval
+        @logger = logger
+      end
+      
+      def shardRecordProcessor(shard_info = nil)
+        Worker.new(
+          @codec.clone,
+          @output_queue_holder.queue,
+          @decorator,
+          @checkpoint_interval,
+          @logger
+        )
+      end
     end
-  end
-
-  def set_client_proxy_settings(clnt_cfg, proxy_uri)
-    protocol = nil
-    case proxy_uri.scheme
-    when "http"
-      protocol = com.amazonaws.Protocol::HTTP
-    when "https"
-      protocol = com.amazonaws.Protocol::HTTPS
-    end
-    clnt_cfg.set_proxy_protocol(protocol) if protocol
-    clnt_cfg.set_proxy_username(proxy_uri.user)
-    clnt_cfg.set_proxy_password(proxy_uri.password)
-    clnt_cfg.set_proxy_host(proxy_uri.host)
-    clnt_cfg.set_proxy_port(proxy_uri.port)
-    clnt_cfg.set_non_proxy_hosts(@non_proxy_hosts) unless @non_proxy_hosts.to_s.empty?
+    
+    # Use a holder object to allow late binding of output_queue
+    output_queue_holder = Struct.new(:queue).new
+    @output_queue_holder = output_queue_holder
+    
+    factory_class.new(
+      @codec,
+      output_queue_holder,
+      method(:decorate),
+      @checkpoint_interval_seconds,
+      @logger
+    )
   end
 end

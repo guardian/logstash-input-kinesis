@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.homepage      = "https://github.com/logstash-plugins/logstash-input-kinesis"
   spec.licenses      = ['Apache-2.0']
 
-  spec.files         = Dir['lib/**/*','spec/**/*','vendor/**/*','*.gemspec','*.md','CONTRIBUTORS','Gemfile','LICENSE','NOTICE.TXT']
+  spec.files         = Dir['lib/**/*','spec/**/*','vendor/**/*','*.gemspec','*.md','CONTRIBUTORS','Gemfile','LICENSE','NOTICE.TXT','VERSION']
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ['lib', 'vendor/jar-dependencies/runtime-jars']
 
@@ -22,9 +22,15 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'logstash-core', '>= 8.9.0'
 
-  spec.requirements << "jar 'com.amazonaws:amazon-kinesis-client', '1.15.0'"
-  spec.requirements << "jar 'com.amazonaws:aws-java-sdk-core', '1.12.408'"
-  spec.requirements << "jar 'com.amazonaws:aws-java-sdk-sts', '1.12.408'"
+  spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client', '2.7.2'"
+  spec.requirements << "jar 'software.amazon.awssdk:kinesis', '2.33.0'"
+  spec.requirements << "jar 'software.amazon.awssdk:dynamodb', '2.33.0'"
+  spec.requirements << "jar 'software.amazon.awssdk:cloudwatch', '2.33.0'"
+  spec.requirements << "jar 'software.amazon.awssdk:sts', '2.33.0'"
+  spec.requirements << "jar 'software.amazon.awssdk:auth', '2.33.0'"
+  spec.requirements << "jar 'software.amazon.awssdk:regions', '2.33.0'"
+  spec.requirements << "jar 'software.amazon.awssdk:apache-client', '2.33.0'"
+  spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client-multilang', '2.7.2'"
 
   spec.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 

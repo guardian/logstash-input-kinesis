@@ -1,3 +1,12 @@
+## 3.0.0
+  - **Breaking**: Upgraded to AWS Kinesis Client Library (KCL) v2.7.2 from v1.15.0
+    - Requires AWS SDK v2 for Kinesis operations
+    - Enables custom endpoint configuration for LocalStack and testing environments
+  - Added support for `kinesis_endpoint`, `dynamodb_endpoint`, and `cloudwatch_endpoint` configuration options
+  - Fixed integration test script to properly detect message processing
+  - Improved error handling in integration tests to distinguish plugin errors from LocalStack compatibility issues
+  - Integration tests now pass successfully with LocalStack
+
 ## 2.3.0
   - Updated Kinesis client to `1.15.0`, now requires Logstash `>=8.9.0` [#102](https://github.com/logstash-plugins/logstash-input-kinesis/pull/102)
 

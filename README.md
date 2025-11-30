@@ -97,3 +97,21 @@ To download all jars:
 
 To run all specs: 
 `bundler exec rspec`
+
+### Integration Tests
+
+Integration tests are available that validate the plugin build, installation, and initialization process:
+
+```sh
+make integration
+```
+
+This will:
+- Build the gem package
+- Install the plugin in a Logstash container
+- Verify the plugin registers and initializes correctly
+- Test with LocalStack infrastructure
+
+**Note**: The plugin now uses Kinesis Client Library v2.7.2, which supports custom endpoint configuration for LocalStack integration. The test validates critical integration points (build, install, register, initialize) which catches most common issues.
+
+For full end-to-end testing with LocalStack or real AWS credentials with actual Kinesis streams, see [integration-test/README.md](integration-test/README.md).
