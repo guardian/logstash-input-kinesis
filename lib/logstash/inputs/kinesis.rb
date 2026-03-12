@@ -197,7 +197,7 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
     cloudwatch_builder.endpointOverride(Java::JavaNet::URI.create(@cloudwatch_endpoint)) if @cloudwatch_endpoint
     cloudwatch_client = cloudwatch_builder.build()
 
-    initial_position = if @initial_position_in_stream == "TRIM_HORIZON"
+    @initial_position = if @initial_position_in_stream == "TRIM_HORIZON"
       ClientConfig::InitialPositionInStreamExtended.newInitialPosition(ClientConfig::InitialPositionInStream::TRIM_HORIZON)
     else
       ClientConfig::InitialPositionInStreamExtended.newInitialPosition(ClientConfig::InitialPositionInStream::LATEST)
@@ -230,14 +230,23 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
 
   def run(output_queue)
     @output_queue_holder.queue = output_queue if @output_queue_holder
+
+    metrics_config = @kcl_config.metricsConfig()
+    if @metrics.nil?
+      metrics_config.metricsFactory(Java::SoftwareAmazonKinesisMetrics::NullMetricsFactory.new)
+    end
+
+    retrieval_config = @kcl_config.retrievalConfig()
+    retrieval_config.initialPositionInStreamExtended(@initial_position)
+
     @kcl_worker = KCL::Scheduler.new(
       @kcl_config.checkpointConfig(),
       @kcl_config.coordinatorConfig(),
       @kcl_config.leaseManagementConfig(),
       @kcl_config.lifecycleConfig(),
-      @kcl_config.metricsConfig(),
+      metrics_config,
       @kcl_config.processorConfig(),
-      @kcl_config.retrievalConfig()
+      retrieval_config
     )
     @kcl_worker.run()
   end

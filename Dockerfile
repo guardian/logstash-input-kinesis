@@ -1,4 +1,4 @@
-FROM docker.elastic.co/logstash/logstash:9.0.1 AS builder-kinesis
+FROM logstash:9.0.1 AS builder-kinesis
 
 USER root
 
@@ -26,6 +26,6 @@ RUN gem install bundler && \
 
 # Output the built gem to a mounted volume or final location
 
-FROM docker.elastic.co/logstash/logstash:9.0.1
+FROM logstash:9.0.1
 COPY --from=builder-kinesis /build/logstash-input-kinesis-*.gem /tmp/
-RUN /opt/logstash/bin/logstash-plugin install /tmp/logstash-input-kinesis-*.gem
+RUN /usr/share/logstash/bin/logstash-plugin install /tmp/logstash-input-kinesis-*.gem

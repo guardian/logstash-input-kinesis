@@ -1,4 +1,4 @@
-.PHONY: help test clean dist-clean setup all integration gem docker
+.PHONY: help test clean dist-clean setup all integration gem docker real-aws
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -35,6 +35,11 @@ docker: ## Build Docker image with the plugin installed
 
 integration: ## Run integration tests with docker-compose, localstack, and http mock
 	@./integration-test/run-test.sh
+
+real-aws: ## Run Logstash against real AWS Kinesis (requires AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
+	@echo "Starting Logstash with real AWS Kinesis..."
+	@echo "Make sure AWS credentials are exported: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN"
+	docker compose -f docker-compose.real-aws.yml up --build
 
 clean: ## Clean vendor directories and installed dependencies
 	@echo "Cleaning vendor directories..."
