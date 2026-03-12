@@ -1,3 +1,46 @@
+
+### Run against real AWS Kinesis
+
+1. Edit `integration-test/logstash/pipeline/kinesis-real-aws.conf` with your stream name, region, and (optionally) `role_arn`.
+
+2. Export AWS credentials and start the container:
+
+```sh
+eval $(aws configure export-credentials --profile <your-profile> --format env) \
+  && docker compose -f docker-compose.real-aws.yml up --build -d
+```
+
+Note: to start the container without rebuilding it remove `--build`. This is useful to test configuration changes.
+
+3. Follow the logs:
+
+```sh
+docker compose -f docker-compose.real-aws.yml logs -f
+```
+
+4. Stop and clean up:
+
+```sh
+docker compose -f docker-compose.real-aws.yml down
+```
+
+### Extract the built `.gem` file
+
+```sh
+# Build just the builder stage
+docker build --target builder-kinesis -t logstash-kinesis-builder .
+
+# Create a temporary container and copy the gem out
+docker create --name gem-extract logstash-kinesis-builder
+docker cp gem-extract:/build/logstash-input-kinesis-3.0.0-java.gem output/
+docker rm gem-extract
+```
+
+The gem will be at `output/logstash-input-kinesis-3.0.0-java.gem`.
+
+---
+
+
 # Logstash AWS Kinesis Input Plugin
 
 [![Build Status](https://travis-ci.com/logstash-plugins/logstash-input-kinesis.svg)](https://travis-ci.com/logstash-plugins/logstash-input-kinesis)
