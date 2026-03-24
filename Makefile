@@ -36,10 +36,9 @@ docker: ## Build Docker image with the plugin installed
 integration: ## Run integration tests with docker-compose, localstack, and http mock
 	@./integration-test/run-test.sh
 
-real-aws: ## Run Logstash against real AWS Kinesis (requires AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
-	@echo "Starting Logstash with real AWS Kinesis..."
-	@echo "Make sure AWS credentials are exported: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN"
-	docker compose -f docker-compose.real-aws.yml up --build
+real-aws: ## Build Docker image for real AWS Kinesis testing
+	@echo "Building Docker image for real AWS Kinesis..."
+	docker compose -f docker-compose.real-aws.yml build
 
 clean: ## Clean vendor directories and installed dependencies
 	@echo "Cleaning vendor directories..."

@@ -3,26 +3,34 @@
 
 1. Edit `integration-test/logstash/pipeline/kinesis-real-aws.conf` with your stream name, region, and (optionally) `role_arn`.
 
-2. Export AWS credentials and start the container:
+2. Build the Docker image:
+
+```sh
+make real-aws
+```
+
+3. Export AWS credentials and start the container:
 
 ```sh
 eval $(aws configure export-credentials --profile <your-profile> --format env) \
-  && docker compose -f docker-compose.real-aws.yml up --build -d
+  && docker compose -f docker-compose.real-aws.yml up -d
 ```
 
-Note: to start the container without rebuilding it remove `--build`. This is useful to test configuration changes.
+> **Important:** The `eval ... export-credentials` command sets `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` as environment variables in your shell. The compose file forwards these to the container. If you skip this step or your credentials have expired, the container will fail to authenticate with AWS.
 
-3. Follow the logs:
+4. Follow the logs:
 
 ```sh
 docker compose -f docker-compose.real-aws.yml logs -f
 ```
 
-4. Stop and clean up:
+5. Stop and clean up:
 
 ```sh
 docker compose -f docker-compose.real-aws.yml down
 ```
+
+> **Tip:** After code changes, re-run `make real-aws` to rebuild the image. For pipeline config changes only, just restart the container — the config is mounted as a volume.
 
 ### Extract the built `.gem` file
 
@@ -101,6 +109,9 @@ this is empty and a role will not be assumed.
 * `initial_position_in_stream`: The value for initialPositionInStream. Accepts "TRIM_HORIZON" or "LATEST".
     * **required**: false
     * **default value**: `"TRIM_HORIZON"`
+* `use_enhanced_fan_out`: Whether to use Enhanced Fan-Out (EFO) for consuming Kinesis streams. EFO uses dedicated throughput via the `SubscribeToShard` API, which requires additional IAM permissions (`kinesis:RegisterStreamConsumer`, `kinesis:SubscribeToShard`) and incurs extra cost. When `false` (default), uses standard polling via the `GetRecords` API with shared throughput.
+    * **required**: false
+    * **default value**: `false`
 
 ### Additional KCL Settings
 * `additional_settings`: The KCL provides several configuration options which can be set in [KinesisClientLibConfiguration](https://github.com/awslabs/amazon-kinesis-client/blob/master/amazon-kinesis-client-multilang/src/main/java/software/amazon/kinesis/coordinator/KinesisClientLibConfiguration.java). These options are configured via various function calls that all begin with `with`. Some of these functions take complex types, which are not supported. However, you may invoke any one of the `withX()` functions that take a primitive by providing key-value pairs in `snake_case`. For example, to set the dynamodb read and write capacity values, two functions exist, withInitialLeaseTableReadCapacity and withInitialLeaseTableWriteCapacity. To set a value for these, provide a hash of `additional_settings => {"initial_lease_table_read_capacity" => 25, "initial_lease_table_write_capacity" => 100}`

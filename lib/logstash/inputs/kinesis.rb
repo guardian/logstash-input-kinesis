@@ -66,6 +66,12 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
   # Select initial_position_in_stream. Accepts TRIM_HORIZON or LATEST
   config :initial_position_in_stream, :validate => ["TRIM_HORIZON", "LATEST"], :default => "TRIM_HORIZON"
 
+  # Whether to use Enhanced Fan-Out (EFO) for consuming Kinesis streams.
+  # EFO uses dedicated throughput via SubscribeToShard, requiring additional
+  # IAM permissions and incurring extra cost. When false (default), uses
+  # standard polling via GetRecords with shared throughput.
+  config :use_enhanced_fan_out, :validate => :boolean, :default => false
+
   # Any additional arbitrary kcl options configurable in the ConfigsBuilder
   config :additional_settings, :validate => :hash, :default => {}
 
@@ -181,7 +187,7 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
       .credentialsProvider(creds_provider)
       .httpClient(http_client)
     kinesis_builder.endpointOverride(Java::JavaNet::URI.create(@kinesis_endpoint)) if @kinesis_endpoint
-    kinesis_client = kinesis_builder.build()
+    @kinesis_client = kinesis_builder.build()
 
     dynamo_builder = Java::SoftwareAmazonAwssdkServicesDynamodb::DynamoDbAsyncClient.builder()
       .region(region)
@@ -206,7 +212,7 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
     configsBuilder = ClientConfig::ConfigsBuilder.new(
       @kinesis_stream_name,
       @application_name,
-      kinesis_client,
+      @kinesis_client,
       dynamo_client,
       cloudwatch_client,
       worker_id,
@@ -238,6 +244,11 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
 
     retrieval_config = @kcl_config.retrievalConfig()
     retrieval_config.initialPositionInStreamExtended(@initial_position)
+
+    unless @use_enhanced_fan_out
+      polling_config = Java::SoftwareAmazonKinesisRetrievalPolling::PollingConfig.new(@kinesis_stream_name, @kinesis_client)
+      retrieval_config.retrievalSpecificConfig(polling_config)
+    end
 
     @kcl_worker = KCL::Scheduler.new(
       @kcl_config.checkpointConfig(),
