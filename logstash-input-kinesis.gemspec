@@ -23,13 +23,13 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'logstash-core', '>= 8.9.0'
 
   spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client', '2.7.2'"
-  spec.requirements << "jar 'software.amazon.awssdk:kinesis', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:dynamodb', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:cloudwatch', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:sts', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:auth', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:regions', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:apache-client', '2.33.0'"
+  spec.requirements << "jar 'software.amazon.awssdk:kinesis', '2.42.31'"
+  spec.requirements << "jar 'software.amazon.awssdk:dynamodb', '2.42.31'"
+  spec.requirements << "jar 'software.amazon.awssdk:cloudwatch', '2.42.31'"
+  spec.requirements << "jar 'software.amazon.awssdk:sts', '2.42.31'"
+  spec.requirements << "jar 'software.amazon.awssdk:auth', '2.42.31'"
+  spec.requirements << "jar 'software.amazon.awssdk:regions', '2.42.31'"
+  spec.requirements << "jar 'software.amazon.awssdk:apache-client', '2.42.31'"
   spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client-multilang', '2.7.2'"
 
   spec.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
