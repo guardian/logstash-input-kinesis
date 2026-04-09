@@ -1,0 +1,26 @@
+name: Maven Dependency Submission
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pom.xml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  submit-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Submit Maven dependency snapshot
+        uses: advanced-security/maven-dependency-submission-action@v5
