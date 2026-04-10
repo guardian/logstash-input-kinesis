@@ -1,3 +1,9 @@
+## 3.1.0
+  - Upgraded to AWS Kinesis Client Library (KCL) v3.4.2 from v2.7.2
+    - KCL 3.x creates 2 additional DynamoDB tables per application: `<app_name>-WorkerMetricStats` and `<app_name>-CoordinatorState`
+    - IAM policies must be updated to grant access to these new tables
+    - No changes to the plugin's Ruby API or configuration options
+
 ## 3.0.0
   - **Breaking**: Upgraded to AWS Kinesis Client Library (KCL) v2.7.2 from v1.15.0
     - Requires AWS SDK v2 for Kinesis operations

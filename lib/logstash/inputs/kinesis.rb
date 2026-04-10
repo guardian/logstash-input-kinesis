@@ -11,7 +11,7 @@ require 'logstash-input-kinesis_jars'
 
 # Receive events through an AWS Kinesis stream.
 #
-# This input plugin uses the Java Kinesis Client Library v2 underneath, so the
+# This input plugin uses the Java Kinesis Client Library v3 underneath, so the
 # documentation at https://github.com/awslabs/amazon-kinesis-client will be
 # useful.
 #

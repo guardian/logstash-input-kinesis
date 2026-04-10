@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    logstash-input-kinesis (3.0.0-java)
+    logstash-input-kinesis (3.1.0-java)
       logstash-core (>= 8.9.0)
       logstash-core-plugin-api (>= 1.60, <= 2.99)
 

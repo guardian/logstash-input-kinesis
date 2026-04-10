@@ -75,7 +75,7 @@ The default chain reads the credentials in this order:
 The credentials need access to the following services:
 
 * AWS Kinesis
-* AWS DynamoDB. The client library stores information for worker coordination in DynamoDB (offsets and active worker per partition)
+* AWS DynamoDB. The client library stores information for worker coordination in DynamoDB (offsets and active worker per partition). KCL 3.x also creates `<application_name>-WorkerMetricStats` and `<application_name>-CoordinatorState` tables — IAM policies must cover these.
 * AWS CloudWatch. If the metrics are enabled the credentials need CloudWatch update permissions granted.
 
 See the

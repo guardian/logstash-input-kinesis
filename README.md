@@ -40,11 +40,11 @@ docker build --target builder-kinesis -t logstash-kinesis-builder .
 
 # Create a temporary container and copy the gem out
 docker create --name gem-extract logstash-kinesis-builder
-docker cp gem-extract:/build/logstash-input-kinesis-3.0.0-java.gem output/
+docker cp gem-extract:/build/logstash-input-kinesis-3.1.0-java.gem output/
 docker rm gem-extract
 ```
 
-The gem will be at `output/logstash-input-kinesis-3.0.0-java.gem`.
+The gem will be at `output/logstash-input-kinesis-3.1.0-java.gem`.
 
 ---
 
@@ -129,7 +129,7 @@ The default chain follows this order trying to read the credentials:
 
 The credentials will need access to the following services:
 * AWS Kinesis
-* AWS DynamoDB: the client library stores information for worker coordination in DynamoDB (offsets and active worker per partition)
+* AWS DynamoDB: the client library stores information for worker coordination in DynamoDB (offsets and active worker per partition). KCL 3.x creates additional DynamoDB tables: `<application_name>-WorkerMetricStats` and `<application_name>-CoordinatorState`. Your IAM policy must grant `dynamodb:CreateTable`, `dynamodb:DescribeTable`, `dynamodb:GetItem`, `dynamodb:PutItem`, `dynamodb:UpdateItem`, `dynamodb:Scan`, and `dynamodb:DeleteItem` on these tables in addition to the main lease table.
 * AWS CloudWatch: if the metrics are enabled the credentials need CloudWatch update permisions granted.
 
 Look at the [documentation](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html) for deeper information on the default chain.
@@ -166,6 +166,6 @@ This will:
 - Verify the plugin registers and initializes correctly
 - Test with LocalStack infrastructure
 
-**Note**: The plugin now uses Kinesis Client Library v2.7.2, which supports custom endpoint configuration for LocalStack integration. The test validates critical integration points (build, install, register, initialize) which catches most common issues.
+**Note**: The plugin now uses Kinesis Client Library v3.4.2, which supports custom endpoint configuration for LocalStack integration. The test validates critical integration points (build, install, register, initialize) which catches most common issues.
 
 For full end-to-end testing with LocalStack or real AWS credentials with actual Kinesis streams, see [integration-test/README.md](integration-test/README.md).
