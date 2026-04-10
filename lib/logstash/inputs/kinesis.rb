@@ -252,7 +252,8 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
 
     @kcl_worker = KCL::Scheduler.new(
       @kcl_config.checkpointConfig(),
-      @kcl_config.coordinatorConfig(),
+      @kcl_config.coordinatorConfig()
+        .clientVersionConfig(KCL::CoordinatorConfig::ClientVersionConfig::CLIENT_VERSION_CONFIG_COMPATIBLE_WITH_2X),
       @kcl_config.leaseManagementConfig(),
       @kcl_config.lifecycleConfig(),
       metrics_config,
