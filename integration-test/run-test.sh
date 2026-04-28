@@ -36,6 +36,22 @@ fi
 
 cd "$PROJECT_DIR"
 
+# Ensure we always dump logs and clean up, even on early failures
+cleanup() {
+    local exit_code=$?
+    echo ""
+    if [ $exit_code -ne 0 ]; then
+        log_error "Script failed (exit code $exit_code). Dumping all container logs for debugging..."
+        echo ""
+        log_info "=== All container logs ==="
+        docker compose logs 2>&1 || true
+    fi
+    log_info "Cleaning up..."
+    docker compose down -v 2>/dev/null || true
+    exit $exit_code
+}
+trap cleanup EXIT
+
 # Start services
 log_info "Starting services with docker compose..."
 docker compose up -d
@@ -43,6 +59,14 @@ docker compose up -d
 # Wait for services to be ready
 log_info "Waiting for services to initialize..."
 sleep 30
+
+# Check if logstash container is still running (catch early crashes)
+if ! docker compose ps --status running logstash 2>/dev/null | grep -q logstash; then
+    log_error "✗ Logstash container is not running!"
+    log_info "=== Logstash container logs ==="
+    docker compose logs logstash 2>&1
+    exit 1
+fi
 
 # Wait for logstash to finish installing plugin and start
 log_info "Waiting for logstash to install plugin and start..."
@@ -82,7 +106,16 @@ if echo "$LOGSTASH_LOGS" | grep -q "Registering logstash-input-kinesis"; then
     fi
 else
     log_error "✗ Plugin did not register"
+    log_info "=== Logstash container logs ==="
+    echo "$LOGSTASH_LOGS"
     PLUGIN_OK=false
+    E2E_OK=false
+
+    echo ""
+    echo "═══════════════════════════════════════════════"
+    log_error "✗ Integration tests FAILED!"
+    log_error "The plugin failed to register. Check the logs above for details."
+    exit 1
 fi
 
 # Create Kinesis stream and setup localstack
@@ -164,10 +197,6 @@ fi
 # Show logstash logs for debugging
 log_info "=== Logstash logs (showing all output) ===" 
 docker compose logs logstash
-
-# Cleanup
-log_info "Cleaning up..."
-docker compose down -v
 
 echo ""
 echo "═══════════════════════════════════════════════"
