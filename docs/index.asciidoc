@@ -92,6 +92,7 @@ This plugin supports the following configuration options plus the <<plugins-{typ
 |Setting |Input type|Required
 | <<plugins-{type}s-{plugin}-application_name>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-checkpoint_interval_seconds>> |<<number,number>>|No
+| <<plugins-{type}s-{plugin}-client_version_config_2x_compatibility>> |<<boolean,boolean>>|No
 | <<plugins-{type}s-{plugin}-http_proxy>> |<<password,password>>|No
 | <<plugins-{type}s-{plugin}-initial_position_in_stream>> |<<string,string>>|No
 | <<plugins-{type}s-{plugin}-kinesis_stream_name>> |<<string,string>>|Yes
@@ -125,6 +126,17 @@ unique for this kinesis stream.
   * Default value is `60`
 
 How many seconds between worker checkpoints to dynamodb.
+
+[id="plugins-{type}s-{plugin}-client_version_config_2x_compatibility"]
+===== `client_version_config_2x_compatibility`
+
+  * Value type is <<boolean,boolean>>
+  * Default value is `false`
+
+Whether to run the KCL in a mode compatible with KCL v2.x workers.
+When `true`, sets the coordinator to `CLIENT_VERSION_CONFIG_COMPATIBLE_WITH_2X`,
+allowing a mixed fleet of v2.x and v3.x workers during migration.
+When `false` (default), the KCL uses its native v3.x mode.
 
 [id="plugins-{type}s-{plugin}-http_proxy"]
 ===== `http_proxy`

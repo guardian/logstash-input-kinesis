@@ -72,6 +72,12 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
   # standard polling via GetRecords with shared throughput.
   config :use_enhanced_fan_out, :validate => :boolean, :default => false
 
+  # Whether to run the KCL in a mode compatible with KCL v2.x workers.
+  # When true, sets the coordinator to CLIENT_VERSION_CONFIG_COMPATIBLE_WITH_2X,
+  # allowing a mixed fleet of v2.x and v3.x workers during migration.
+  # When false (default), the KCL uses its native v3.x mode.
+  config :client_version_config_2x_compatibility, :validate => :boolean, :default => false
+
   # Any additional arbitrary kcl options configurable in the ConfigsBuilder
   config :additional_settings, :validate => :hash, :default => {}
 
@@ -250,10 +256,15 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
       retrieval_config.retrievalSpecificConfig(polling_config)
     end
 
+    coordinator_config = @kcl_config.coordinatorConfig()
+    if @client_version_config_2x_compatibility
+      @logger.info("ClientVersionConfig is set to CLIENT_VERSION_CONFIG_COMPATIBLE_WITH_2X")
+      coordinator_config.clientVersionConfig(KCL::CoordinatorConfig::ClientVersionConfig::CLIENT_VERSION_CONFIG_COMPATIBLE_WITH_2X)
+    end
+
     @kcl_worker = KCL::Scheduler.new(
       @kcl_config.checkpointConfig(),
-      @kcl_config.coordinatorConfig()
-        .clientVersionConfig(KCL::CoordinatorConfig::ClientVersionConfig::CLIENT_VERSION_CONFIG_COMPATIBLE_WITH_2X),
+      coordinator_config,
       @kcl_config.leaseManagementConfig(),
       @kcl_config.lifecycleConfig(),
       metrics_config,
