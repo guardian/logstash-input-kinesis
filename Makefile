@@ -1,4 +1,4 @@
-.PHONY: help test clean dist-clean setup all integration gem docker real-aws build-gem
+.PHONY: help test clean dist-clean setup all integration gem docker real-aws build-gem validate-gem
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -39,6 +39,11 @@ build-gem: ## Build gem package via Docker and extract the artifact
 	@container_id=$$(docker create gem-builder) && \
 		docker cp "$$container_id:/build/logstash-input-kinesis-$$(cat VERSION)-java.gem" . && \
 		docker rm "$$container_id"
+
+validate-gem: ## Validate the built gem installs correctly in Logstash
+	@echo "Validating gem installation in Logstash..."
+	docker run --rm -v $(CURDIR):/tmp/gems docker.elastic.co/logstash/logstash:8.15.2 \
+		bash -c "logstash-plugin install /tmp/gems/logstash-input-kinesis-$(shell cat VERSION)-java.gem"
 
 integration: ## Run integration tests with docker-compose, localstack, and http mock
 	@./integration-test/run-test.sh
