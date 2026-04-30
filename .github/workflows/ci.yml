@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    # branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  CI:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Unit tests
+        run: make unit-test
+
+      - name: Build and extract gem
+        run: make build-gem
+
+      - name: Validate gem installs in Logstash
+        run: make validate-gem
+
+      - name: Find gem file
+        id: gem
+        run: echo "path=$(ls logstash-input-kinesis-*-java.gem)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to Riff-Raff
+        uses: guardian/actions-riff-raff@403b5796f8f7e8b8d6cac889e8830e7444ca7058 # v4
+        with:
+          app: logstash-input-kinesis
+          roleArn: ${{ secrets.GU_RIFF_RAFF_ROLE_ARN }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          commentingStage: INFRA
+          config: |
+            stacks:
+              - deploy
+            regions:
+              - eu-west-1
+            allowedStages:
+              - INFRA
+            deployments:
+              upload-gem:
+                type: aws-s3
+                parameters:
+                  bucketSsmLookup: true
+                  bucketSsmKey: /PROD/deploy/amigo/ansible.packages.s3bucket
+                  cacheControl: private
+                  publicReadAcl: false
+          contentDirectories: |
+            upload-gem:
+              - ${{ steps.gem.outputs.path }}
