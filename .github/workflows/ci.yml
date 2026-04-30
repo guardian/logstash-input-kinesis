@@ -55,6 +55,9 @@ jobs:
                   bucketSsmKey: /PROD/deploy/amigo/ansible.packages.s3bucket
                   cacheControl: private
                   publicReadAcl: false
+                  prefixPackage: false
+                  prefixStack: false
+                  prefixStage: false
           contentDirectories: |
             upload-gem:
               - ${{ steps.gem.outputs.path }}
