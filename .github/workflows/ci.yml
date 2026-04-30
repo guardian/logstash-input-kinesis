@@ -58,6 +58,8 @@ jobs:
                   prefixPackage: false
                   prefixStack: false
                   prefixStage: false
+                  prefixStagePaths:
+                    INFRA: packages/debs
           contentDirectories: |
             upload-gem:
               - ${{ steps.gem.outputs.path }}
