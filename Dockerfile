@@ -24,6 +24,10 @@ RUN gem install bundler && \
     bundle exec rake install_jars && \
     gem build logstash-input-kinesis.gemspec
 
+# Run unit tests
+FROM builder-kinesis AS unit-test
+RUN bundle exec rspec
+
 # Output the built gem to a mounted volume or final location
 
 FROM logstash:9.0.1

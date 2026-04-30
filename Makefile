@@ -21,9 +21,9 @@ vendor/jar-dependencies/.timestamp: vendor/bundle/.timestamp logstash-input-kine
 
 install-jars: vendor/jar-dependencies/.timestamp ## Download Java JAR dependencies
 
-test: install-jars ## Run unit tests
-	@echo "Running tests..."
-	bundle exec rspec
+unit-test: ## Run unit tests via Docker
+	@echo "Running unit tests via Docker..."
+	docker build --target unit-test -t logstash-input-kinesis-test .
 
 gem: install-jars ## Build gem package
 	@echo "Building gem package..."
