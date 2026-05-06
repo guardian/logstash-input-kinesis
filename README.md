@@ -4,7 +4,7 @@ This project does not have continuous deployment enabled. To deploy manually
 
 - Commit a bump to `VERSION`
 - Deploy [riff-raff project](https://riffraff.gutools.co.uk/deployment/history?projectName=deploy::logstash-input-kinesis&stage=INFRA)
-- Change [amigo recipe to use the new version] and bake a new AMI
+- Change [amigo recipe to use the new version](https://amigo.gutools.co.uk/recipes/arm-jammy-elk-logstash-with-custom-kinesis-plugin) and bake a new AMI
 - Redeploy [the central ELK stack](https://riffraff.gutools.co.uk/deployment/history?projectName=central-elk&page=1)
 
 
