@@ -1,6 +1,9 @@
 ### Deployment
 
-This project does not have continuous deployment enabled. To deploy manually 
+> [!WARNING]
+> This project does not have continuous deployment enabled, as doing so would overwrite the gem file currently in use by amigo.
+
+To deploy manually 
 
 - Commit a bump to `VERSION`
 - Deploy [riff-raff project](https://riffraff.gutools.co.uk/deployment/history?projectName=deploy::logstash-input-kinesis&stage=INFRA)
@@ -10,7 +13,10 @@ This project does not have continuous deployment enabled. To deploy manually
 
 ### Run against real AWS Kinesis
 
-1. Edit `integration-test/logstash/pipeline/kinesis-real-aws.conf` with your stream name, region, and (optionally) `role_arn`.
+> [!Note]
+> The IAM setup of our logging stream requires performing an assume role operation to read the stream. In practice this means the process outlined below requires using "account admin" janus permissions for the dev playground account.
+
+1. Edit `integration-test/logstash/pipeline/kinesis-real-aws.conf` with the stream name, region, and (optionally) `role_arn`.
 
 2. Build the Docker image:
 
