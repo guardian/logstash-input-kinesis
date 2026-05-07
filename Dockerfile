@@ -1,9 +1,7 @@
-FROM logstash:9.0.1 AS builder-kinesis
+ARG LOGSTASH_VERSION=8.15.2
+FROM logstash:${LOGSTASH_VERSION} AS builder-kinesis
 
 USER root
-
-# Install build dependencies
-RUN microdnf install -y make && microdnf clean all
 
 # Set up environment to use Logstash's bundled tools
 ENV JAVA_HOME=/usr/share/logstash/jdk
@@ -30,6 +28,7 @@ RUN bundle exec rspec
 
 # Output the built gem to a mounted volume or final location
 
-FROM logstash:9.0.1
+ARG LOGSTASH_VERSION=8.15.2
+FROM logstash:${LOGSTASH_VERSION}
 COPY --from=builder-kinesis /build/logstash-input-kinesis-*.gem /tmp/
 RUN /usr/share/logstash/bin/logstash-plugin install /tmp/logstash-input-kinesis-*.gem

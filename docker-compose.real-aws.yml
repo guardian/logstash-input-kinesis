@@ -2,6 +2,8 @@ services:
   logstash:
     build:
       context: .
+      args:
+        LOGSTASH_VERSION: ${LOGSTASH_VERSION}
     container_name: logstash-kinesis-real-aws
     environment:
       - XPACK_MONITORING_ENABLED=false
