@@ -1,3 +1,10 @@
+### Fixing security vulnerabilities
+
+1. Update or pin versions in `logstash-input-kinesis.gemspec`
+2. Update `pom.xml` to reflect that config change
+
+Unfortunately dependabot is unable to scan the gemspec directly, so we manually have to produce an identical `pom.xml` so it can then be submitted to dependabot via the `maven-dependency-submission.yml` workflow.
+
 ### Deployment
 
 > [!WARNING]
@@ -5,10 +12,10 @@
 
 To deploy manually 
 
-- Commit a bump to `VERSION`
-- Deploy [riff-raff project](https://riffraff.gutools.co.uk/deployment/history?projectName=deploy::logstash-input-kinesis&stage=INFRA)
-- Change [amigo recipe to use the new version](https://amigo.gutools.co.uk/recipes/arm-jammy-elk-logstash-with-custom-kinesis-plugin) and bake a new AMI
-- Redeploy [the central ELK stack](https://riffraff.gutools.co.uk/deployment/history?projectName=central-elk&page=1)
+1. Commit a bump to `VERSION`
+2. Deploy [riff-raff project](https://riffraff.gutools.co.uk/deployment/history?projectName=deploy::logstash-input-kinesis&stage=INFRA)
+3. Change [amigo recipe to use the new version](https://amigo.gutools.co.uk/recipes/arm-jammy-elk-logstash-with-custom-kinesis-plugin) and bake a new AMI
+4. Redeploy [the central ELK stack](https://riffraff.gutools.co.uk/deployment/history?projectName=central-elk&page=1)
 
 
 ### Run against real AWS Kinesis
