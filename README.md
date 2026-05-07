@@ -1,3 +1,8 @@
+### Notes on this fork
+
+This is a fork of the KCL Logstash input plugin, tailored to The Guardian's use case. It implements only the subset of KCL v3 configuration options that we need — anything unused has been intentionally left out and is untested. For this reason, we don't plan to contribute this fork upstream.
+
+
 ### Fixing security vulnerabilities
 
 1. Update or pin versions in `logstash-input-kinesis.gemspec`
