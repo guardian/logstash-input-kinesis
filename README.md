@@ -27,7 +27,7 @@ make real-aws
 3. Export AWS credentials and start the container:
 
 ```sh
-eval $(aws configure export-credentials --profile <your-profile> --format env) \
+eval $(aws configure export-credentials --profile deployTools --format env) \
   && docker compose -f docker-compose.real-aws.yml up -d
 ```
 
