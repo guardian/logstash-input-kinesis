@@ -22,19 +22,24 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'logstash-core', '>= 8.9.0'
 
-  spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client', '2.7.2'"
-  spec.requirements << "jar 'software.amazon.awssdk:kinesis', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:dynamodb', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:cloudwatch', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:sts', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:auth', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:regions', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.awssdk:apache-client', '2.33.0'"
-  spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client-multilang', '2.7.2'"
+  spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client', '3.4.2'"
+  spec.requirements << "jar 'software.amazon.awssdk:kinesis', '2.41.21'"
+  spec.requirements << "jar 'software.amazon.awssdk:dynamodb', '2.41.21'"
+  spec.requirements << "jar 'software.amazon.awssdk:cloudwatch', '2.41.21'"
+  spec.requirements << "jar 'software.amazon.awssdk:sts', '2.41.21'"
+  spec.requirements << "jar 'software.amazon.awssdk:auth', '2.41.21'"
+  spec.requirements << "jar 'software.amazon.awssdk:regions', '2.41.21'"
+  spec.requirements << "jar 'software.amazon.awssdk:apache-client', '2.41.21'"
+  spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client-multilang', '3.4.2'"
+
+  # Pin transitive dependencies to fix high-severity CVEs
+  spec.requirements << "jar 'io.netty:netty-codec-http', '4.1.132.Final'"       # CVE-2026-33870
+  spec.requirements << "jar 'io.netty:netty-codec-http2', '4.1.132.Final'"      # CVE-2026-33871
+  spec.requirements << "jar 'org.apache.kafka:kafka-clients', '3.9.2'"          # CVE-2026-35554
 
   spec.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 
   spec.add_development_dependency 'logstash-devutils'
-  spec.add_development_dependency 'jar-dependencies', '~> 0.4'
+  spec.add_development_dependency 'jar-dependencies', '~> 0.4.0'
   spec.add_development_dependency "logstash-codec-json"
 end

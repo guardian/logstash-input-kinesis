@@ -1,0 +1,23 @@
+services:
+  logstash:
+    build:
+      context: .
+      args:
+        LOGSTASH_VERSION: ${LOGSTASH_VERSION}
+    container_name: logstash-kinesis-real-aws
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_REGION=eu-west-1
+    ports:
+      - "9600:9600"
+    volumes:
+      - ./integration-test/logstash/pipeline/kinesis-real-aws.conf:/usr/share/logstash/pipeline/kinesis-real-aws.conf:ro
+      - ./integration-test/logstash/config:/usr/share/logstash/config
+    command: >
+      bash -c "
+        logstash -f /usr/share/logstash/pipeline/kinesis-real-aws.conf --config.reload.automatic
+      "
+

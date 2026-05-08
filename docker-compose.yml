@@ -1,6 +1,6 @@
 services:
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:4.4.0
     container_name: logstash-kinesis-localstack
     environment:
       - SERVICES=kinesis,dynamodb,cloudwatch
@@ -21,6 +21,7 @@ services:
 
   http-mock:
     image: mockserver/mockserver:latest
+    platform: linux/amd64
     container_name: logstash-kinesis-http-mock
     environment:
       - MOCKSERVER_PROPERTY_FILE=/config/mockserver.properties
@@ -33,9 +34,10 @@ services:
   logstash:
     build:
       context: .
+      args:
+        LOGSTASH_VERSION: ${LOGSTASH_VERSION}
     container_name: logstash-kinesis-test
     environment:
-      - XPACK_MONITORING_ENABLED=false
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - AWS_REGION=us-east-1

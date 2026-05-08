@@ -88,6 +88,30 @@ RSpec.describe "inputs/kinesis" do
     }
   }}
 
+  # Config hash to test enhanced fan-out enabled
+  let(:config_with_efo) {{
+    "application_name" => "my-processor",
+    "kinesis_stream_name" => "run-specs",
+    "codec" => codec,
+    "metrics" => metrics,
+    "checkpoint_interval_seconds" => 120,
+    "region" => "ap-southeast-1",
+    "profile" => nil,
+    "use_enhanced_fan_out" => true
+  }}
+
+  # Config hash to test client_version_config_2x_compatibility enabled
+  let(:config_with_2x_compatibility) {{
+    "application_name" => "my-processor",
+    "kinesis_stream_name" => "run-specs",
+    "codec" => codec,
+    "metrics" => metrics,
+    "checkpoint_interval_seconds" => 120,
+    "region" => "ap-southeast-1",
+    "profile" => nil,
+    "client_version_config_2x_compatibility" => true
+  }}
+
   subject!(:kinesis) { LogStash::Inputs::Kinesis.new(config) }
   let(:kcl_worker) { double('kcl_worker', run: nil, shutdown: nil) }
   let(:metrics) { nil }
@@ -139,6 +163,28 @@ RSpec.describe "inputs/kinesis" do
 
   it "raises NoMethodError for invalid configuration options" do
     expect{ kinesis_with_invalid_additional_settings_name_not_found.register }.to raise_error(NoMethodError)
+  end
+
+  subject!(:kinesis_with_efo) { LogStash::Inputs::Kinesis.new(config_with_efo) }
+
+  it "registers with enhanced fan-out enabled" do
+    expect { kinesis_with_efo.register }.to_not raise_error
+  end
+
+  it "defaults to polling (enhanced fan-out disabled)" do
+    kinesis.register
+    expect(kinesis.instance_variable_get(:@use_enhanced_fan_out)).to eq(false)
+  end
+
+  subject!(:kinesis_with_2x_compat) { LogStash::Inputs::Kinesis.new(config_with_2x_compatibility) }
+
+  it "registers with client_version_config_2x_compatibility enabled" do
+    expect { kinesis_with_2x_compat.register }.to_not raise_error
+  end
+
+  it "defaults client_version_config_2x_compatibility to false" do
+    kinesis.register
+    expect(kinesis.instance_variable_get(:@client_version_config_2x_compatibility)).to eq(false)
   end
 
   context "#run" do

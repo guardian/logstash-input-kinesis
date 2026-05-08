@@ -1,0 +1,4 @@
+java temurin-17
+maven latest
+ruby jruby-9.4.14.0
+jq latest

@@ -11,7 +11,7 @@ require 'logstash-input-kinesis_jars'
 
 # Receive events through an AWS Kinesis stream.
 #
-# This input plugin uses the Java Kinesis Client Library v2 underneath, so the
+# This input plugin uses the Java Kinesis Client Library v3 underneath, so the
 # documentation at https://github.com/awslabs/amazon-kinesis-client will be
 # useful.
 #
@@ -65,6 +65,18 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
 
   # Select initial_position_in_stream. Accepts TRIM_HORIZON or LATEST
   config :initial_position_in_stream, :validate => ["TRIM_HORIZON", "LATEST"], :default => "TRIM_HORIZON"
+
+  # Whether to use Enhanced Fan-Out (EFO) for consuming Kinesis streams.
+  # EFO uses dedicated throughput via SubscribeToShard, requiring additional
+  # IAM permissions and incurring extra cost. When false (default), uses
+  # standard polling via GetRecords with shared throughput.
+  config :use_enhanced_fan_out, :validate => :boolean, :default => false
+
+  # Whether to run the KCL in a mode compatible with KCL v2.x workers.
+  # When true, sets the coordinator to CLIENT_VERSION_CONFIG_COMPATIBLE_WITH_2X,
+  # allowing a mixed fleet of v2.x and v3.x workers during migration.
+  # When false (default), the KCL uses its native v3.x mode.
+  config :client_version_config_2x_compatibility, :validate => :boolean, :default => false
 
   # Any additional arbitrary kcl options configurable in the ConfigsBuilder
   config :additional_settings, :validate => :hash, :default => {}
@@ -181,7 +193,7 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
       .credentialsProvider(creds_provider)
       .httpClient(http_client)
     kinesis_builder.endpointOverride(Java::JavaNet::URI.create(@kinesis_endpoint)) if @kinesis_endpoint
-    kinesis_client = kinesis_builder.build()
+    @kinesis_client = kinesis_builder.build()
 
     dynamo_builder = Java::SoftwareAmazonAwssdkServicesDynamodb::DynamoDbAsyncClient.builder()
       .region(region)
@@ -197,7 +209,7 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
     cloudwatch_builder.endpointOverride(Java::JavaNet::URI.create(@cloudwatch_endpoint)) if @cloudwatch_endpoint
     cloudwatch_client = cloudwatch_builder.build()
 
-    initial_position = if @initial_position_in_stream == "TRIM_HORIZON"
+    @initial_position = if @initial_position_in_stream == "TRIM_HORIZON"
       ClientConfig::InitialPositionInStreamExtended.newInitialPosition(ClientConfig::InitialPositionInStream::TRIM_HORIZON)
     else
       ClientConfig::InitialPositionInStreamExtended.newInitialPosition(ClientConfig::InitialPositionInStream::LATEST)
@@ -206,7 +218,7 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
     configsBuilder = ClientConfig::ConfigsBuilder.new(
       @kinesis_stream_name,
       @application_name,
-      kinesis_client,
+      @kinesis_client,
       dynamo_client,
       cloudwatch_client,
       worker_id,
@@ -230,14 +242,34 @@ class LogStash::Inputs::Kinesis < LogStash::Inputs::Base
 
   def run(output_queue)
     @output_queue_holder.queue = output_queue if @output_queue_holder
+
+    metrics_config = @kcl_config.metricsConfig()
+    if @metrics.nil?
+      metrics_config.metricsFactory(Java::SoftwareAmazonKinesisMetrics::NullMetricsFactory.new)
+    end
+
+    retrieval_config = @kcl_config.retrievalConfig()
+    retrieval_config.initialPositionInStreamExtended(@initial_position)
+
+    unless @use_enhanced_fan_out
+      polling_config = Java::SoftwareAmazonKinesisRetrievalPolling::PollingConfig.new(@kinesis_stream_name, @kinesis_client)
+      retrieval_config.retrievalSpecificConfig(polling_config)
+    end
+
+    coordinator_config = @kcl_config.coordinatorConfig()
+    if @client_version_config_2x_compatibility
+      @logger.info("ClientVersionConfig is set to CLIENT_VERSION_CONFIG_COMPATIBLE_WITH_2X")
+      coordinator_config.clientVersionConfig(KCL::CoordinatorConfig::ClientVersionConfig::CLIENT_VERSION_CONFIG_COMPATIBLE_WITH_2X)
+    end
+
     @kcl_worker = KCL::Scheduler.new(
       @kcl_config.checkpointConfig(),
-      @kcl_config.coordinatorConfig(),
+      coordinator_config,
       @kcl_config.leaseManagementConfig(),
       @kcl_config.lifecycleConfig(),
-      @kcl_config.metricsConfig(),
+      metrics_config,
       @kcl_config.processorConfig(),
-      @kcl_config.retrievalConfig()
+      retrieval_config
     )
     @kcl_worker.run()
   end
