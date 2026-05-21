@@ -17,7 +17,7 @@ Unfortunately dependabot is unable to scan the gemspec directly, so we manually 
 
 To deploy manually 
 
-1. Commit a bump to the minor version specified in `VERSION`
+1. Increase the version specified in the `VERSION` file. We don't follow semver, keeping the major version at 3 and bumping the minor version should be sufficient for most situations.
 2. Deploy [riff-raff project](https://riffraff.gutools.co.uk/deployment/history?projectName=deploy::logstash-input-kinesis&stage=INFRA)
 3. Change [amigo recipe to use the new version](https://amigo.gutools.co.uk/recipes/arm-jammy-elk-logstash-with-custom-kinesis-plugin) and bake a new AMI
 4. Redeploy [the central ELK stack](https://riffraff.gutools.co.uk/deployment/history?projectName=central-elk&page=1)
