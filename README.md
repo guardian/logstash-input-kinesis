@@ -24,7 +24,7 @@ To deploy manually
 
 #### Checking the health of the system
 
-This project has integration testing using localstack running on CI, so a green build is a good signal that the plugin isn't broken. But tests only go so far.
+This project has integration testing using LocalStack running on CI, so a green build is a good signal that the plugin isn't broken. But tests only go so far.
 
 To make sure logs are still flowing after deploying the new version you can check the [central elk monitoring](https://metrics.gutools.co.uk/d/edqmzvlfoq1vkf/central-elk-monitoring?var-Period=5m&orgId=1&from=now-1h&to=now&timezone=browser) dashboard, particularly the `GetRecords.Success` metric, which should remain at a nominal level. Note that it's normal for this metric to dip during briefly during deployment, but should return quickly to a normal level. Over a longer time range like [7 days with a 15m period](https://metrics.gutools.co.uk/d/edqmzvlfoq1vkf/central-elk-monitoring?var-Period=15m&orgId=1&from=now-7d&to=now&timezone=browser)), this dip/recovery behaviour can be seen everytime there's a routine deployment.
 
