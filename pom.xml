@@ -61,12 +61,12 @@
     <dependency>
       <groupId>software.amazon.kinesis</groupId>
       <artifactId>amazon-kinesis-client</artifactId>
-      <version>3.4.2</version>
+      <version>3.5.1</version>
     </dependency>
     <dependency>
       <groupId>software.amazon.kinesis</groupId>
       <artifactId>amazon-kinesis-client-multilang</artifactId>
-      <version>3.4.2</version>
+      <version>3.5.1</version>
     </dependency>
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
