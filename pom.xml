@@ -40,6 +40,11 @@
         <version>4.1.136.Final</version>
       </dependency>
       <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-handler</artifactId>
+        <version>4.1.136.Final</version>
+      </dependency>
+      <dependency>
         <groupId>com.squareup.wire</groupId>
         <artifactId>wire-runtime</artifactId>
         <version>6.3.0</version>
