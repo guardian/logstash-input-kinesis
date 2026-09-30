@@ -1,5 +1,8 @@
 services:
   logstash:
+    # We're emulating an x86_64 environment on an M4 Mac to avoid Java SEGFAULT issues with Logstash.
+    # See https://forums.docker.com/t/image-builds-fail-on-new-macbook-despite-working-fine-on-prior-apple-silicon/145772/4
+    platform: "linux/amd64"
     build:
       context: .
       args:
