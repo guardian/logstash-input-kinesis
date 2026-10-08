@@ -40,7 +40,7 @@ Gem::Specification.new do |spec|
   spec.requirements << "jar 'com.squareup.wire:wire-runtime', '6.4.5'"               # CVE-2026-45799
   spec.requirements << "jar 'com.squareup.wire:wire-runtime-jvm', '6.4.5'"           # CVE-2026-45799
   spec.requirements << "jar 'org.apache.kafka:kafka-clients', '3.9.2'"               # CVE-2026-35554
-  spec.requirements << "jar 'com.fasterxml.jackson.core:jackson-databind', '2.21.6'" # CVE-2026-68497
+  spec.requirements << "jar 'com.fasterxml.jackson.core:jackson-databind', '2.21.7'" # CVE-2026-68497
 
   spec.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 
