@@ -22,7 +22,7 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'logstash-core', '>= 8.9.0'
 
-  spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client', '3.5.1'"
+  spec.requirements << "jar 'software.amazon.kinesis:amazon-kinesis-client', '3.5.3'"
   spec.requirements << "jar 'software.amazon.awssdk:kinesis', '2.41.21'"
   spec.requirements << "jar 'software.amazon.awssdk:dynamodb', '2.41.21'"
   spec.requirements << "jar 'software.amazon.awssdk:cloudwatch', '2.41.21'"
