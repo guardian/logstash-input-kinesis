@@ -41,6 +41,10 @@ Gem::Specification.new do |spec|
   spec.requirements << "jar 'com.squareup.wire:wire-runtime-jvm', '6.4.5'"           # CVE-2026-45799
   spec.requirements << "jar 'org.apache.kafka:kafka-clients', '3.9.2'"               # CVE-2026-35554
   spec.requirements << "jar 'com.fasterxml.jackson.core:jackson-databind', '2.21.7'" # CVE-2026-68497
+  # Pin lz4-java to a specific version that fixes the following CVEs:
+  # CVE-2026-59949, CVE-2026-106451, CVE-2026-106450,
+  # CVE-2026-106452,CVE-2026-106453, CVE-2026-106449
+  spec.requirements << "jar 'at.yawk.lz4:lz4-java', '1.14.0'"
 
   spec.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
 
