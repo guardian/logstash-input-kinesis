@@ -64,6 +64,15 @@
         <artifactId>jackson-databind</artifactId>
         <version>2.21.7</version>
       </dependency>
+      <!-- Pin lz4-java to a specific version that fixes the following CVEs:
+      CVE-2026-59949, CVE-2026-106451, CVE-2026-106450,
+      CVE-2026-106452,CVE-2026-106453, CVE-2026-106449
+      -->
+      <dependency>
+        <groupId>at.yawk.lz4</groupId>
+        <artifactId>lz4-java</artifactId>
+        <version>1.14.0</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
